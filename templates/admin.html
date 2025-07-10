@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Admin Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #1a1a1a;
+            --bg-tertiary: #2a2a2a;
+            --text-primary: #ffffff;
+            --text-secondary: #b0b0b0;
+            --text-dim: #808080;
+            --accent-primary: #6366f1;
+            --accent-secondary: #8b5cf6;
+            --accent-hover: #7c3aed;
+            --accent-glow: rgba(99, 102, 241, 0.5);
+            --border-color: #333333;
+            --danger: #ef4444;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Animated background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+                        radial-gradient(circle at 40% 20%, rgba(124, 58, 237, 0.15) 0%, transparent 50%);
+            animation: gradientShift 20s ease infinite;
+            z-index: -1;
+        }
+
+        @keyframes gradientShift {
+            0%, 100% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(180deg) scale(1.1); }
+        }
+
+        /* Login Modal */
+        .login-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .login-form {
+            background: var(--bg-secondary);
+            padding: 40px;
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            width: 90%;
+            max-width: 400px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .login-form h2 {
+            margin-bottom: 30px;
+            text-align: center;
+            color: var(--accent-primary);
+            font-size: 28px;
+        }
+
+        .login-form input {
+            width: 100%;
+            padding: 14px 20px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+            border-radius: 10px;
+            font-size: 16px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .login-form input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .login-form button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .login-form button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px var(--accent-glow);
+        }
+
+        .error-message {
+            color: var(--danger);
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        /* Header */
+        .header {
+            background: var(--bg-secondary);
+            padding: 20px 40px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header h1::before {
+            content: '📊';
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 12px;
+        }
+
+        .nav-btn {
+            padding: 10px 20px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+            border-radius: 8px;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .nav-btn:hover {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            transform: translateY(-2px);
+        }
+
+        /* Main Content */
+        .dashboard {
+            padding: 40px;
+            max-width: 1400px;
+            margin: 0 auto;
+            display: none;
+        }
+
+        .dashboard.active {
+            display: block;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 24px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.2);
+        }
+
+        .stat-card h3 {
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--accent-primary);
+            text-shadow: 0 0 20px var(--accent-glow);
+            margin-bottom: 8px;
+        }
+
+        .stat-detail {
+            color: var(--text-dim);
+            font-size: 14px;
+        }
+
+        /* Current Session Card */
+        .current-session {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+            border: 1px solid var(--accent-primary);
+            border-radius: 20px;
+            padding: 32px;
+            margin-bottom: 40px;
+            position: relative;
+        }
+
+        .current-session::before {
+            content: '🔴 LIVE';
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: var(--danger);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .current-session h2 {
+            color: var(--text-primary);
+            margin-bottom: 24px;
+            font-size: 20px;
+        }
+
+        .session-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .session-stat {
+            background: var(--bg-secondary);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .session-stat-label {
+            color: var(--text-secondary);
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .session-stat-value {
+            color: var(--accent-primary);
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        /* Charts Container */
+        .charts-container {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 40px;
+        }
+
+        .chart-placeholder {
+            height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-dim);
+            font-size: 16px;
+        }
+
+        /* Session Table */
+        .sessions-table {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .sessions-table h2 {
+            padding: 24px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            font-size: 20px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: var(--bg-secondary);
+            padding: 16px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            padding: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+        }
+
+        tr:hover td {
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        .session-id {
+            font-family: monospace;
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        /* Loading State */
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: var(--text-dim);
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--glass-border);
+            border-top: 3px solid var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header {
+                padding: 20px;
+            }
+
+            .dashboard {
+                padding: 20px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .current-session::before {
+                position: static;
+                display: inline-block;
+                margin-bottom: 20px;
+            }
+
+            table {
+                font-size: 14px;
+            }
+
+            th, td {
+                padding: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Modal -->
+    <div class="login-modal" id="loginModal">
+        <div class="login-form">
+            <h2>Admin Login</h2>
+            <div class="error-message" id="errorMessage"></div>
+            <form id="loginForm">
+                <input 
+                    type="password" 
+                    id="passwordInput" 
+                    placeholder="Enter admin password" 
+                    autocomplete="current-password"
+                    required
+                />
+                <button type="submit">Login</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <div class="header">
+        <h1>RAG Admin Dashboard</h1>
+        <div class="nav-buttons">
+            <a href="/" class="nav-btn">← Back to Chat</a>
+            <button class="nav-btn" id="logoutBtn">Logout</button>
+        </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div class="dashboard" id="dashboard">
+        <div class="loading" id="loadingState">
+            <div class="loading-spinner"></div>
+            <p>Loading statistics...</p>
+        </div>
+
+        <div id="dashboardContent" style="display: none;">
+            <!-- Total Stats Grid -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Total Input Tokens</h3>
+                    <div class="stat-value" id="totalInputTokens">0</div>
+                    <div class="stat-detail">Tokens sent to model</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Output Tokens</h3>
+                    <div class="stat-value" id="totalOutputTokens">0</div>
+                    <div class="stat-detail">Tokens generated</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Queries</h3>
+                    <div class="stat-value" id="totalQueries">0</div>
+                    <div class="stat-detail">All-time queries</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Average Tokens/Query</h3>
+                    <div class="stat-value" id="avgTokensPerQuery">0</div>
+                    <div class="stat-detail">Input + Output</div>
+                </div>
+            </div>
+
+            <!-- Current Session -->
+            <div class="current-session">
+                <h2>Current Session</h2>
+                <div class="session-stats">
+                    <div class="session-stat">
+                        <div class="session-stat-label">Session ID</div>
+                        <div class="session-stat-value session-id" id="currentSessionId">-</div>
+                    </div>
+                    <div class="session-stat">
+                        <div class="session-stat-label">Duration</div>
+                        <div class="session-stat-value" id="currentDuration">0s</div>
+                    </div>
+                    <div class="session-stat">
+                        <div class="session-stat-label">Input Tokens</div>
+                        <div class="session-stat-value" id="currentInputTokens">0</div>
+                    </div>
+                    <div class="session-stat">
+                        <div class="session-stat-label">Output Tokens</div>
+                        <div class="session-stat-value" id="currentOutputTokens">0</div>
+                    </div>
+                    <div class="session-stat">
+                        <div class="session-stat-label">Queries</div>
+                        <div class="session-stat-value" id="currentQueries">0</div>
+                    </div>
+                    <div class="session-stat">
+                        <div class="session-stat-label">Tokens/Query</div>
+                        <div class="session-stat-value" id="currentAvgTokens">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Token Usage Chart -->
+            <div class="charts-container">
+                <h2 style="margin-bottom: 20px;">Token Usage Visualization</h2>
+                <div class="chart-placeholder">
+                    <canvas id="tokenChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+
+            <!-- Sessions Table -->
+            <div class="sessions-table">
+                <h2>All Sessions</h2>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Session ID</th>
+                                <th>Start Time</th>
+                                <th>Duration</th>
+                                <th>Queries</th>
+                                <th>Input Tokens</th>
+                                <th>Output Tokens</th>
+                                <th>Total Tokens</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sessionsTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        let isAuthenticated = false;
+        let statsInterval = null;
+        let tokenChart = null;
+
+        // Check authentication on load
+        async function checkAuth() {
+            try {
+                const response = await fetch('/admin/stats');
+                if (response.ok) {
+                    isAuthenticated = true;
+                    document.getElementById('loginModal').style.display = 'none';
+                    document.getElementById('dashboard').classList.add('active');
+                    loadStats();
+                    // Refresh stats every 5 seconds
+                    statsInterval = setInterval(loadStats, 5000);
+                }
+            } catch (error) {
+                console.error('Auth check failed:', error);
+            }
+        }
+
+        // Login form handler
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const password = document.getElementById('passwordInput').value;
+            
+            try {
+                const response = await fetch('/admin/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    isAuthenticated = true;
+                    document.getElementById('loginModal').style.display = 'none';
+                    document.getElementById('dashboard').classList.add('active');
+                    document.getElementById('errorMessage').textContent = '';
+                    loadStats();
+                    // Refresh stats every 5 seconds
+                    statsInterval = setInterval(loadStats, 5000);
+                } else {
+                    document.getElementById('errorMessage').textContent = 'Invalid password';
+                    document.getElementById('passwordInput').value = '';
+                }
+            } catch (error) {
+                document.getElementById('errorMessage').textContent = 'Login failed';
+                console.error('Login error:', error);
+            }
+        });
+
+        // Logout handler
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            try {
+                await fetch('/admin/logout', {
+                    method: 'POST'
+                });
+                
+                isAuthenticated = false;
+                clearInterval(statsInterval);
+                document.getElementById('loginModal').style.display = 'flex';
+                document.getElementById('dashboard').classList.remove('active');
+                document.getElementById('passwordInput').value = '';
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+        });
+
+        // Load statistics
+        async function loadStats() {
+            if (!isAuthenticated) return;
+
+            try {
+                const response = await fetch('/admin/stats');
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        // Session expired
+                        isAuthenticated = false;
+                        clearInterval(statsInterval);
+                        document.getElementById('loginModal').style.display = 'flex';
+                        document.getElementById('dashboard').classList.remove('active');
+                    }
+                    return;
+                }
+
+                const data = await response.json();
+                
+                // Hide loading, show content
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('dashboardContent').style.display = 'block';
+
+                // Update total stats
+                document.getElementById('totalInputTokens').textContent = data.total_stats.input_tokens.toLocaleString();
+                document.getElementById('totalOutputTokens').textContent = data.total_stats.output_tokens.toLocaleString();
+                document.getElementById('totalQueries').textContent = data.total_stats.total_queries.toLocaleString();
+                
+                const avgTokens = data.total_stats.total_queries > 0 
+                    ? Math.round((data.total_stats.input_tokens + data.total_stats.output_tokens) / data.total_stats.total_queries)
+                    : 0;
+                document.getElementById('avgTokensPerQuery').textContent = avgTokens.toLocaleString();
+
+                // Update current session
+                document.getElementById('currentSessionId').textContent = data.current_session.id.substring(0, 8) + '...';
+                document.getElementById('currentDuration').textContent = data.current_session.duration_formatted;
+                document.getElementById('currentInputTokens').textContent = data.current_session.stats.input_tokens.toLocaleString();
+                document.getElementById('currentOutputTokens').textContent = data.current_session.stats.output_tokens.toLocaleString();
+                document.getElementById('currentQueries').textContent = data.current_session.stats.queries.toLocaleString();
+                
+                const currentAvg = data.current_session.stats.queries > 0
+                    ? Math.round((data.current_session.stats.input_tokens + data.current_session.stats.output_tokens) / data.current_session.stats.queries)
+                    : 0;
+                document.getElementById('currentAvgTokens').textContent = currentAvg.toLocaleString();
+
+                // Update sessions table
+                updateSessionsTable(data.all_sessions);
+
+                // Update chart
+                updateTokenChart(data);
+
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        // Update sessions table
+        function updateSessionsTable(sessions) {
+            const tbody = document.getElementById('sessionsTableBody');
+            tbody.innerHTML = '';
+
+            sessions.reverse().forEach(session => {
+                const row = document.createElement('tr');
+                const startTime = new Date(session.stats.start_time);
+                const duration = formatDuration(session.duration_seconds);
+                const totalTokens = session.stats.input_tokens + session.stats.output_tokens;
+
+                row.innerHTML = `
+                    <td class="session-id">${session.id.substring(0, 8)}...</td>
+                    <td>${startTime.toLocaleString()}</td>
+                    <td>${duration}</td>
+                    <td>${session.stats.queries.toLocaleString()}</td>
+                    <td>${session.stats.input_tokens.toLocaleString()}</td>
+                    <td>${session.stats.output_tokens.toLocaleString()}</td>
+                    <td>${totalTokens.toLocaleString()}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Update token chart
+        function updateTokenChart(data) {
+            const ctx = document.getElementById('tokenChart').getContext('2d');
+            
+            if (tokenChart) {
+                tokenChart.destroy();
+            }
+
+            tokenChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Input Tokens', 'Output Tokens'],
+                    datasets: [{
+                        data: [
+                            data.total_stats.input_tokens,
+                            data.total_stats.output_tokens
+                        ],
+                        backgroundColor: [
+                            'rgba(99, 102, 241, 0.8)',
+                            'rgba(139, 92, 246, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgba(99, 102, 241, 1)',
+                            'rgba(139, 92, 246, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#b0b0b0',
+                                padding: 20,
+                                font: {
+                                    size: 14
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed.toLocaleString();
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                    return `${label}: ${value} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Format duration helper
+        function formatDuration(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            
+            if (hours > 0) {
+                return `${hours}h ${minutes}m ${secs}s`;
+            } else if (minutes > 0) {
+                return `${minutes}m ${secs}s`;
+            } else {
+                return `${secs}s`;
+            }
+        }
+
+        // Check auth on page load
+        checkAuth();
+
+        // Focus password input
+        document.getElementById('passwordInput').focus();
+    </script>
+</body>
+</html>
